@@ -52,13 +52,6 @@ The main balancing values live in the config class and are designed to be adjust
 - Code and design inspired by the Tech Reborn ecosystem.
 - Some logic is adapted from Tech Reborn and RebornCore usage patterns.
 
-## Support
-
-If this mod helps your pack or server, support the project here:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/xurceo)
-
-
 ## Minecraft compatibility (development branch)
 
 The `1.21.1-dev` branch targets **Minecraft 1.21.1**, Fabric Loader, and Java 21.
