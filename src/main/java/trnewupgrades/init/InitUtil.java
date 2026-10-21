@@ -3,53 +3,43 @@ package trnewupgrades.init;
 import java.util.HashMap;
 import java.util.Objects;
 
-import org.jspecify.annotations.NonNull;
-
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.Util;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import trnewupgrades.TechRebornNewUpgrades;
-import net.minecraft.util.Util;
-import net.fabricmc.loader.api.FabricLoader;
 
-public class InitUtil {
+public final class InitUtil {
+    private static final HashMap<Object, ResourceLocation> objIdentMap = new HashMap<>();
 
-    private static final HashMap<@NonNull Object, @NonNull Identifier> objIdentMap = new HashMap<>();
+    private InitUtil() {
+    }
 
-	public static <I extends @NonNull Item> @NonNull I setup(@NonNull I item, @NonNull String name) {
-		Identifier identifier = Identifier.fromNamespaceAndPath(TechRebornNewUpgrades.MOD_ID, name);
-		registerIdent(item, identifier);
+    public static <I extends Item> I setup(I item, String name) {
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(TechRebornNewUpgrades.MOD_ID, name);
+        registerIdent(item, id);
+        if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            String expected = Util.makeDescriptionId("item", id);
+            String actual = item.getDescriptionId();
+            if (!expected.equals(actual) && item.getClass().getName().startsWith("trnewupgrades.")) {
+                throw new IllegalStateException("Item translation key mismatch: expected " + expected + ", got " + actual);
+            }
+        }
+        return item;
+    }
 
-		if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
-			String expect = Util.makeDescriptionId("item", identifier);
-			String actual = item.getDescriptionId();
+    public static void registerIdent(Object object, ResourceLocation id) {
+        objIdentMap.put(object, id);
+    }
 
-			if (!expect.equals(actual)) {
-				boolean isProjectItem = item.getClass().getName().startsWith("trnewupgrades.");
-				boolean hasCorrectItemPath = actual.endsWith("." + name);
+    public static void registerItem(Item item) {
+        ResourceLocation id = Objects.requireNonNull(objIdentMap.get(item), "Missing identifier for item: " + item);
+        registerItem(item, id);
+    }
 
-				if (isProjectItem || !hasCorrectItemPath) {
-					// Keep strict checks for local items, but allow external item classes that use their own namespace.
-					throw new IllegalStateException("Item translation key mismatch: expected " + expect + ", got " + actual);
-				}
-			}
-		}
-
-		return item;
-	}
-
-    public static void registerIdent(@NonNull Object object, @NonNull Identifier identifier){
-		objIdentMap.put(object, identifier);
-	}
-
-	public static void registerItem(@NonNull Item item) {
-		Identifier identifier = Objects.requireNonNull(objIdentMap.get(item), "Missing identifier for item: " + item);
-		registerItem(item, identifier);
-	}
-
-	@SuppressWarnings("null")
-	public static void registerItem(@NonNull Item item, @NonNull Identifier name) {
-		Registry.register(BuiltInRegistries.ITEM, name, item);
-	}
+    public static void registerItem(Item item, ResourceLocation id) {
+        Registry.register(BuiltInRegistries.ITEM, id, item);
+    }
 }
