@@ -57,3 +57,11 @@ The main balancing values live in the config class and are designed to be adjust
 If this mod helps your pack or server, support the project here:
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/xurceo)
+
+
+## Minecraft compatibility (development branch)
+
+The `1.21.1-dev` branch targets **Minecraft 1.21.1**, Fabric Loader, and Java 21.
+Install Fabric API, Tech Reborn 5.11.18, and RebornCore 5.11.19.
+This is a development port; verify the build and test machine behavior in-game
+before using it in a long-running world.
