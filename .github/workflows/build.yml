@@ -23,8 +23,63 @@ jobs:
         run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
-      - name: capture build artifacts
+
+      - name: install headless game runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            xvfb \
+            xauth \
+            libgl1 \
+            libgl1-mesa-dri \
+            libglx-mesa0 \
+            libxrandr2 \
+            libxinerama1 \
+            libxcursor1 \
+            libxi6 \
+            libasound2t64
+
+      - name: smoke test Minecraft client startup
+        shell: bash
+        run: |
+          set +e
+          LIBGL_ALWAYS_SOFTWARE=1 timeout --signal=INT --kill-after=15s 300s \
+            xvfb-run -a ./gradlew runClient --no-daemon --console=plain --stacktrace \
+            2>&1 | tee client-smoke-test.log
+          client_status=${PIPESTATUS[0]}
+          set -e
+
+          # runClient normally stays open at the title screen. A timeout is
+          # expected, but only after the game has initialized successfully.
+          if [[ "$client_status" -ne 124 ]]; then
+            echo "::error::Minecraft client exited unexpectedly (status: $client_status)."
+            tail -n 200 client-smoke-test.log || true
+            exit 1
+          fi
+
+          logs=(client-smoke-test.log run/logs/latest.log)
+          if ! grep -hEq 'Sound engine started|OpenAL initialized' "${logs[@]}" 2>/dev/null; then
+            echo "::error::Minecraft did not reach client initialization before the timeout."
+            tail -n 200 client-smoke-test.log || true
+            exit 1
+          fi
+
+          if ! grep -hq 'trnewupgrades' "${logs[@]}" 2>/dev/null; then
+            echo "::error::The trnewupgrades mod was not found in the startup logs."
+            tail -n 200 client-smoke-test.log || true
+            exit 1
+          fi
+
+          echo "Minecraft client initialized and the trnewupgrades mod was found in the startup logs."
+
+      - name: capture build and startup-test artifacts
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts
-          path: build/libs/
+          path: |
+            build/libs/
+            client-smoke-test.log
+            run/logs/
+            run/crash-reports/
+          if-no-files-found: warn
