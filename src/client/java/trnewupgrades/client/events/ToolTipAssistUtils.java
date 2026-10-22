@@ -63,7 +63,7 @@ public class ToolTipAssistUtils {
 		String key = ("trnewupgrades.message.info." + inKey);
 
 		if (Language.getInstance().has(key)) {
-			if (!hidden || Minecraft.getInstance().hasShiftDown()) {
+			if (!hidden || net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
 				String info = I18n.get(key);
 				List<MutableComponent> infoLines = Arrays.stream(info.split("\\r?\\n"))
 					.map(infoLine -> Component.literal(infoColour + infoLine)).toList();
