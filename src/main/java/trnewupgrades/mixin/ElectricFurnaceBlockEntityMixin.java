@@ -150,7 +150,10 @@ public abstract class ElectricFurnaceBlockEntityMixin {
 		}
 		int maxByInput = Math.min(input.getCount(), 64);
 		ItemStack output = inventory.getItem(1);
-		ItemStack result = currentRecipe.assemble(new SingleRecipeInput(inventory.getItem(inputSlot)));
+		ItemStack result = currentRecipe.assemble(
+				new SingleRecipeInput(inventory.getItem(inputSlot)),
+				trnu$getMachineBase().getLevel().registryAccess()
+		);
 		int outputSpace = output.isEmpty() ? result.getMaxStackSize() : Math.max(result.getMaxStackSize() - output.getCount(), 0);
 		int maxByOutput = outputSpace / Math.max(result.getCount(), 1);
 		int craftsPerOp = Math.max(Math.min(Math.min(maxByInput, maxByOutput), craftsLimit), 1);
