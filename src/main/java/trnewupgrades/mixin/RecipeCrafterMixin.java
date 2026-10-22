@@ -8,7 +8,6 @@ import java.util.Optional;
 import net.minecraft.world.item.ItemStack;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import org.jspecify.annotations.NonNull;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -31,8 +30,8 @@ import trnewupgrades.util.UpgradeUtils;
 public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
     /**
      * Mixin for RecipeCrafter: adds processing-stack behavior, computes
-     * `craftsPerOperation` at recipe selection, and ensures `completeCraft`
-     * uses the precomputed value to avoid races.
+     * `craftsPerOperation` at recipe selection, and repeats the existing
+     * `updateEntity` completion path for the remainder of each batch.
      */
     
     /* ----------------
@@ -69,9 +68,6 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
     public RebornInventory<?> inventory;
 
     @Shadow(remap = false)
-    protected abstract boolean isValidRecipe(RebornRecipe recipe);
-
-    @Shadow(remap = false)
     public abstract boolean hasAllInputs(RebornRecipe recipe);
 
     @Shadow(remap = false)
@@ -87,7 +83,7 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
     public abstract void setCurrentRecipe(RebornRecipe recipe);
 
     @Shadow(remap = false)
-    protected abstract void resetCrafter();
+    public abstract void setIsActive();
 
     @Shadow(remap = false)
     public abstract double getSpeedMultiplier();
@@ -137,12 +133,6 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
      *
      * @param original the wrapped method call
      */
-    @WrapMethod(method = "resetCrafter", remap = false)
-    protected void trnu$wrapResetCrafter(Operation<Void> original) {
-        original.call();
-        craftsPerOperation = 1;
-    }
-
     @Unique
     private int craftsPerOperation = 1;
 
@@ -285,6 +275,45 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
     }
 
     /**
+     * Repeats the normal completion path for the remaining crafts in the batch.
+     * RebornCore 5.11.x performs completion inside updateEntity rather than a
+     * separate completeCraft method.
+     */
+    @WrapMethod(method = "updateEntity", remap = false)
+    public void trnu$wrapUpdateEntity(Operation<Void> original) {
+        boolean stackProcessingNow = parentUpgradeHandler
+                .map(handler -> handler instanceof ProcessingStackAccessor accessor && accessor.isProcessingStack())
+                .orElse(processingStack);
+        if (processingStack != stackProcessingNow) {
+            setInvDirty(true);
+        }
+        processingStack = stackProcessingNow;
+
+        boolean completionDue = currentRecipe != null
+                && currentTickTime >= currentNeededTicks
+                && hasAllInputs(currentRecipe);
+        int requestedCrafts = completionDue ? Math.max(craftsPerOperation, 1) : 1;
+
+        original.call();
+
+        // Successful completion resets currentTickTime to zero. If output space
+        // or onCraft prevented crafting, progress remains at the threshold.
+        if (!completionDue || requestedCrafts <= 1 || currentTickTime != 0) {
+            return;
+        }
+        for (int i = 1; i < requestedCrafts; i++) {
+            if (currentRecipe == null || !hasAllInputs(currentRecipe)) {
+                break;
+            }
+            currentTickTime = currentNeededTicks;
+            original.call();
+            if (currentTickTime != 0) {
+                break;
+            }
+        }
+    }
+
+    /**
      * Wraps recipe selection to cache crafts-per-operation and scale the
      * recipe duration for stack processing.
      *
@@ -295,13 +324,26 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
         BlockEntity currentBlockEntity = Objects.requireNonNull(blockEntity);
         Level level = currentBlockEntity.getLevel();
         if (level == null) {
-            resetCrafter();
+            trnu$resetCrafter();
             return;
         }
 
         RecipeType<? extends RebornRecipe> currentRecipeType = Objects.requireNonNull(recipeType);
         for (RebornRecipe recipe : RecipeUtils.getRecipes(level, currentRecipeType)) {
-            if (!isValidRecipe(recipe)) continue;
+            if (!hasAllInputs(recipe) || !recipe.canCraft(currentBlockEntity)) {
+                continue;
+            }
+            List<ItemStack> recipeOutputs = recipe.outputs();
+            boolean hasOutputSpace = true;
+            for (int i = 0; i < recipeOutputs.size(); i++) {
+                if (!canFitOutput(recipeOutputs.get(i), outputSlots[i])) {
+                    hasOutputSpace = false;
+                    break;
+                }
+            }
+            if (!hasOutputSpace) {
+                continue;
+            }
 
             // Reset progress if recipe changed
             if (currentRecipe != recipe) {
@@ -325,76 +367,18 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
             return;
         }
 
-        // No matching recipe. Reset.
-        resetCrafter();
+        // Match RebornCore 5.11.x behavior when no recipe is available.
+        trnu$resetCrafter();
     }
 
-    /**
-     * Checks whether every output can still fit in its assigned slot.
-     *
-     * @param outputs the recipe outputs to validate
-     * @return true if all outputs fit in their assigned slots
-     */
     @Unique
-    private boolean canFitAllOutputs(final @NonNull List<ItemStack> outputs) {
-        for (int i = 0; i < outputs.size(); i++) {
-            if (!canFitOutput(outputs.get(i), outputSlots[i])) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Inserts the crafted outputs into their configured slots.
-     *
-     * @param outputs the recipe outputs to insert
-     */
-    @Unique
-    private void insertOutputs(@NonNull List<ItemStack> outputs) {
-        ArrayList<Integer> filledSlots = new ArrayList<>();
-        // Avoid writing the same output slot multiple times for recipes that share slot targets.
-        for (int i = 0; i < outputs.size(); i++) {
-            if (!filledSlots.contains(outputSlots[i])) {
-                fitStack(outputs.get(i).copy(), outputSlots[i]);
-                filledSlots.add(outputSlots[i]);
-            }
-        }
-    }
-
-    /**
-     * Wraps craft completion so multiple crafts can be completed atomically
-     * using the precomputed stack count.
-     *
-     * @param original the wrapped method call
-     */
-    @WrapMethod(method = "completeCraft", remap = false)
-    protected void trnu$wrapCompleteCraft(Operation<Void> original) {
-        final List<ItemStack> outputs = new ArrayList<>();
-        for (ItemStack output : currentRecipe.outputs()) {
-            outputs.add(output.copy());
-        }
-        // Use the pre-calculated craftsPerOperation from updateCurrentRecipe.
-        // Do NOT re-evaluate here; the processingStack flag may have transient state.
-        int craftsThisOperation = Math.max(craftsPerOperation, 1);
-        int crafted = 0;
-        BlockEntity currentBlockEntity = Objects.requireNonNull(blockEntity);
-        for (int i = 0; i < craftsThisOperation; i++) {
-            if (!hasAllInputs(currentRecipe) || !canFitAllOutputs(outputs)) {
-                break;
-            }
-            // Check machine-specific on craft logic for each craft operation.
-            if (!currentRecipe.onCraft(currentBlockEntity)) {
-                break;
-            }
-            insertOutputs(outputs);
-            useAllInputs();
-            crafted++;
-        }
-
-        if (crafted == 0) {
-            return;
-        }
+    private void trnu$resetCrafter() {
+        setCurrentRecipe(null);
         currentTickTime = 0;
+        currentNeededTicks = 0;
+        craftsPerOperation = 1;
+        resetProcessingStack();
+        setIsActive();
     }
+
 }

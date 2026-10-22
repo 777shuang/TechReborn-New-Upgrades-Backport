@@ -117,6 +117,10 @@ public abstract class RecyclerRecipeCrafterMixin {
 	@Inject(method = "updateCurrentRecipe", at = @At("TAIL"), remap = false)
 	private void trnu$applyStackProcessing(CallbackInfo ci) {
 		RecipeCrafter crafter = trnu$crafter();
+		if (crafter.currentRecipe == null) {
+			trnu$accessor().setCraftsPerOperation(1);
+			return;
+		}
 		if (!trnu$isProcessingStack()) {
 			// Keep the recipe time in sync when stack processing is off so a
 			// stale scaled value cannot linger after the STACK upgrade is removed.
