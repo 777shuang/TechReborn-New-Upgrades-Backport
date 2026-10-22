@@ -1,11 +1,21 @@
 {
   "type": "minecraft:crafting_shaped",
   "group": "transformermk2_upgrade",
-  "pattern": [" T ", "CIC", " T "],
+  "pattern": [
+    " T ",
+    "CIC",
+    " T "
+  ],
   "key": {
-    "C": "techreborn:glassfiber_cable",
-    "T": "techreborn:transformer_upgrade",
-    "I": "techreborn:industrial_circuit"
+    "C": {
+      "item": "techreborn:glassfiber_cable"
+    },
+    "T": {
+      "item": "techreborn:transformer_upgrade"
+    },
+    "I": {
+      "item": "techreborn:industrial_circuit"
+    }
   },
   "result": {
     "id": "trnewupgrades:transformermk2_upgrade"

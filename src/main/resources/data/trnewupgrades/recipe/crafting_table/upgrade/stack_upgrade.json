@@ -1,13 +1,27 @@
 {
   "type": "minecraft:crafting_shaped",
   "group": "stack_upgrade",
-  "pattern": ["CFC", "HOH", "CLC"],
+  "pattern": [
+    "CFC",
+    "HOH",
+    "CLC"
+  ],
   "key": {
-    "O": "techreborn:data_storage_chip",
-    "C": "techreborn:superconductor",
-    "H": "techreborn:helium_coolant_cell_360k",
-    "L": "techreborn:lapotronic_orb",
-    "F": "techreborn:fusion_coil"
+    "O": {
+      "item": "techreborn:data_storage_chip"
+    },
+    "C": {
+      "item": "techreborn:superconductor"
+    },
+    "H": {
+      "item": "techreborn:helium_coolant_cell_360k"
+    },
+    "L": {
+      "item": "techreborn:lapotronic_orb"
+    },
+    "F": {
+      "item": "techreborn:fusion_coil"
+    }
   },
   "result": {
     "id": "trnewupgrades:stack_upgrade"
