@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import org.jspecify.annotations.NonNull;
@@ -180,8 +179,8 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
                 ? UpgradeUtils.getStackCraftsPerOperation(machineBase.getUpgradeInventory())
                 : 1;
         final List<ItemStack> outputs = new ArrayList<>();
-        for (ItemStackTemplate template : recipe.outputs()) {
-            outputs.add(template.create());
+        for (ItemStack output : recipe.outputs()) {
+            outputs.add(output.copy());
         }
         if (!isItemRecipe(outputs)) {
             return 1;
@@ -372,8 +371,8 @@ public abstract class RecipeCrafterMixin implements ProcessingStackAccessor {
     @WrapMethod(method = "completeCraft", remap = false)
     protected void trnu$wrapCompleteCraft(Operation<Void> original) {
         final List<ItemStack> outputs = new ArrayList<>();
-        for (ItemStackTemplate template : currentRecipe.outputs()) {
-            outputs.add(template.create());
+        for (ItemStack output : currentRecipe.outputs()) {
+            outputs.add(output.copy());
         }
         // Use the pre-calculated craftsPerOperation from updateCurrentRecipe.
         // Do NOT re-evaluate here; the processingStack flag may have transient state.
