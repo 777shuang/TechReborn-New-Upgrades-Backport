@@ -43,7 +43,7 @@ public class StackToolTipHandler implements ItemTooltipCallback {
                 lines.set(0, TextUtils.makeOmni(stack.getHoverName().getString()));
             }
 			ToolTipAssistUtils.addInfo(item.getDescriptionId(), lines, false);
-			lines.addAll(ToolTipAssistUtils.getUpgradeStats(TRNUContent.Upgrades.fromItem(upgrade), stack.getCount(), mc.hasShiftDown()));
+			lines.addAll(ToolTipAssistUtils.getUpgradeStats(TRNUContent.Upgrades.fromItem(upgrade), stack.getCount(), net.minecraft.client.gui.screens.Screen.hasShiftDown()));
 		}
     }
 
