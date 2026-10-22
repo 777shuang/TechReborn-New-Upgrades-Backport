@@ -51,13 +51,19 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	mappings loom.officialMojangMappings()
 	
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fapi_version}"
 	
     modImplementation "maven.modrinth:3NCrJdj3:QtkC5plA"
 	modImplementation "maven.modrinth:3eMENr4V:qpctXwwN"
+
+    // Explicit compile-time dependencies for mixins and annotations used by the 1.21.1 APIs.
+    compileOnly "net.fabricmc:sponge-mixin:${project.mixin_version}"
+    annotationProcessor "net.fabricmc:sponge-mixin:${project.mixin_version}"
+    compileOnly "io.github.llamalad7:mixinextras-fabric:0.4.1"
+    compileOnly "org.jspecify:jspecify:1.0.0"
 }
 
 processResources {
